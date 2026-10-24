@@ -1,0 +1,14 @@
+dgx-spark-popo
+Copyright (c) 2026 0mao0
+
+This project is based on MinerU-Popo (https://github.com/opendatalab/MinerU-Popo)
+at commit 8b9a8bd, licensed under the MIT License. It is an unofficial
+derivative and is not affiliated with or endorsed by OpenDataLab or the
+MinerU-Popo Project Authors.
+
+Modifications relative to upstream:
+- post_processing/model_utils.py: POPO_CONFIGS multi-endpoint configuration,
+  per-endpoint timeout (POPO_API_TIMEOUT), and POPO_MAX_TOKENS.
+
+The vLLM engine image and model weights referenced by deploy/ are separate
+artifacts; weights are not redistributed (see THIRD_PARTY_NOTICES.md).

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "popo-client"
+version = "0.1.0"
+description = "PoPo document parsing client library (post-processing / tree building), based on MinerU-Popo 8b9a8bd"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+# 上游无 __init__.py，按命名空间包收集（与 AnGIneer docs-core 生产模式一致）；
+# figures / output_cases 为上游资料目录，留在仓但不打进 wheel。
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
+include = ["popo*"]
+exclude = ["popo.figures*", "popo.output_cases*"]
