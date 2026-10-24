@@ -98,6 +98,10 @@ def _transformers_generate(prompt, base64_image):
     )
     return output_text[0] if output_text else ""
 
+def _popo_temperature():
+    """采样温度：默认 1 保持历史行为；差分/回归设 POPO_TEMPERATURE=0 走贪心解码。"""
+    return float(os.environ.get("POPO_TEMPERATURE", "1"))
+
 def popo_generate(prompt, base64_image):
     if os.environ.get("POPO_INFERENCE_BACKEND") == "transformers":
         return _transformers_generate(prompt, base64_image)
@@ -149,7 +153,7 @@ def popo_generate(prompt, base64_image):
                         model=base_model,
                         messages=messages,
                         max_tokens=max_tokens,
-                        temperature=1,
+                        temperature=_popo_temperature(),
                     )
                     res = response.choices[0].message.content
                     return res
@@ -212,7 +216,7 @@ def qwen_generate(prompt, base64_image):
                         model=base_model,
                         messages=messages,
                         max_tokens=max_tokens,
-                        temperature = 1
+                        temperature=_popo_temperature()
                     )
                     res = response.choices[0].message.content
 
@@ -274,7 +278,7 @@ def gpt_generate(prompt, base64_image):#gemini-3-pro-preview
                     response = client.chat.completions.create(
                         model=base_model,
                         messages=messages,
-                        temperature = 1
+                        temperature=_popo_temperature()
                     )
                     res = response.choices[0].message.content
 

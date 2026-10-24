@@ -8,7 +8,9 @@ MinerU-Popo Project Authors.
 
 Modifications relative to upstream:
 - post_processing/model_utils.py: POPO_CONFIGS multi-endpoint configuration,
-  per-endpoint timeout (POPO_API_TIMEOUT), and POPO_MAX_TOKENS.
+  per-endpoint timeout (POPO_API_TIMEOUT), POPO_MAX_TOKENS, and optional
+  POPO_TEMPERATURE override (default 1 preserves upstream behavior; set 0
+  for greedy decoding).
 
 The vLLM engine image and model weights referenced by deploy/ are separate
 artifacts; weights are not redistributed (see THIRD_PARTY_NOTICES.md).
