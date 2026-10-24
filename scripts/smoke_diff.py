@@ -58,12 +58,13 @@ def build_configs(url: str) -> str:
     return json.dumps(cfg)
 
 
-def run_chain(popo_root: Path, docs, out: Path, endpoint: str, greedy: bool):
+def run_chain(popo_root: Path, docs, out: Path, endpoint: str, greedy: bool,
+              new_temperature="0"):
     env = os.environ.copy()
     env["POPO_CONFIGS"] = build_configs(endpoint)
     env["PYTHONUTF8"] = "1"
-    if not greedy:
-        env["POPO_TEMPERATURE"] = "0"
+    if new_temperature is not None:
+        env["POPO_TEMPERATURE"] = new_temperature
     cmd = [sys.executable, str(REPO / "scripts" / "run_popo_chain.py"),
            "--popo-root", str(popo_root), "--out", str(out),
            "--doc", *[str(d) for d in docs]]
@@ -83,6 +84,8 @@ def main():
     ap.add_argument("--n", type=int, default=3)
     ap.add_argument("--tier", choices=["smoke", "differential"], default="smoke",
                     help="differential=单页 2 本放宽判据 + 多页 8 本轮转严格等值（计划 §6.2）")
+    ap.add_argument("--production-params", action="store_true",
+                    help="M4 影子档：新库 temp=1（现产口径），跳过确定性复跑")
     args = ap.parse_args()
 
     manifest = load_manifest(args.manifest)
@@ -100,25 +103,29 @@ def main():
         print(f"  {d.name}")
 
     out = Path(args.out)
-    rc_new = run_chain(Path(args.new_root), docs, out / "new", args.new_endpoint, greedy=False)
+    new_temp = None if args.production_params else "0"
+    rc_new = run_chain(Path(args.new_root), docs, out / "new", args.new_endpoint,
+                       greedy=False, new_temperature=new_temp)
     print(f"新库链路退出码 {rc_new.returncode}")
 
     if args.old_root:
         rc_old = run_chain(Path(args.old_root), docs, out / "old", args.old_endpoint, greedy=True)
         print(f"旧库链路退出码 {rc_old.returncode}")
 
-    # 确定性校验：首本复跑，两次构树必须逐字节一致
-    rc_det = run_chain(Path(args.new_root), docs[:1], out / "new2", args.new_endpoint, greedy=False)
-    print(f"确定性复跑退出码 {rc_det.returncode}")
-    first = docs[0].name
-    r = subprocess.run(
-        [sys.executable, str(REPO / "scripts" / "diff_trees.py"),
-         "--old", str(out / "new" / first / "tree"), "--new", str(out / "new2" / first / "tree"),
-         "--whitelist"],
-        capture_output=True, text=True, encoding="utf-8", errors="replace")
-    print(f"确定性校验（temp=0 复跑应零差异）: {'通过' if r.returncode == 0 else '失败'}")
-    if r.returncode != 0:
-        print(r.stdout[-1500:])
+    # 确定性校验：首本复跑，两次构树必须逐字节一致（temp=0 才有意义）
+    if not args.production_params:
+        rc_det = run_chain(Path(args.new_root), docs[:1], out / "new2", args.new_endpoint,
+                           greedy=False, new_temperature=new_temp)
+        print(f"确定性复跑退出码 {rc_det.returncode}")
+        first = docs[0].name
+        r = subprocess.run(
+            [sys.executable, str(REPO / "scripts" / "diff_trees.py"),
+             "--old", str(out / "new" / first / "tree"), "--new", str(out / "new2" / first / "tree"),
+             "--whitelist"],
+            capture_output=True, text=True, encoding="utf-8", errors="replace")
+        print(f"确定性校验（temp=0 复跑应零差异）: {'通过' if r.returncode == 0 else '失败'}")
+        if r.returncode != 0:
+            print(r.stdout[-1500:])
 
     if args.old_root:
         # 正式差分对象 = 构树 JSON（计划 §6.3）；status/raw 等运行元数据不参与
