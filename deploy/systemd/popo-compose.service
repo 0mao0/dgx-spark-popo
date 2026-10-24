@@ -1,0 +1,17 @@
+# 可选：开机拉起 compose。复制到 /etc/systemd/system/ 后：
+#   systemctl daemon-reload && systemctl enable --now popo-compose
+# 说明：compose 已配 restart: unless-stopped，docker.service 自启时容器会随起；
+# 本单元用于 docker 未设自启或希望显式编排入口的场景。
+[Unit]
+Description=PoPo engine + sampling proxy (docker compose)
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/popo
+ExecStart=/usr/bin/docker compose -f deploy/compose.yaml --env-file deploy/.env up -d
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

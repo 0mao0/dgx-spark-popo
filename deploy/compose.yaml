@@ -1,0 +1,77 @@
+# PoPo 引擎 + 采样代理。参数与现役部署一致（2026-10-24 docker inspect 实测）。
+services:
+  engine:
+    image: ${POPO_IMAGE}
+    container_name: popo-engine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8010:8010"
+    volumes:
+      - /usr/local/cuda:/usr/local/cuda:ro
+      - ${POPO_HOME}/.cache:${POPO_HOME}/.cache
+      - ${POPO_MODEL_DIR}:${POPO_MODEL_DIR}:ro
+    command:
+      - serve
+      - ${POPO_MODEL_DIR}
+      - --api-key
+      - ${POPO_API_KEY}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8010"
+      - --served-model-name
+      - Popo
+      - --dtype
+      - bfloat16
+      - --gpu-memory-utilization
+      - "0.17"
+      - --max-model-len
+      - "32768"
+      - --max-num-seqs
+      - "4"
+      - --quantization
+      - fp8
+      - --trust-remote-code
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    ipc: host
+    shm_size: 16g
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 6
+      start_period: 15m
+
+  proxy:
+    image: ${POPO_IMAGE}
+    container_name: popo-api
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - engine
+    volumes:
+      - ./popo_proxy.py:/app/popo_proxy.py:ro
+    environment:
+      - POPO_PROXY_UPSTREAM=http://127.0.0.1:8010
+      - POPO_PROXY_PORT=${POPO_PROXY_PORT:-8008}
+      - POPO_PROXY_TEMPERATURE=${POPO_PROXY_TEMPERATURE:-0.7}
+      - POPO_PROXY_TOP_P=${POPO_PROXY_TOP_P:-0.8}
+      - POPO_PROXY_TOP_K=${POPO_PROXY_TOP_K:-20}
+    command: ["python", "/app/popo_proxy.py"]
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${POPO_PROXY_PORT:-8008}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
