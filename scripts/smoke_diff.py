@@ -95,13 +95,18 @@ def main():
         print(r.stdout[-1500:])
 
     if args.old_root:
-        r = subprocess.run(
-            [sys.executable, str(REPO / "scripts" / "diff_trees.py"),
-             "--old", str(out / "old"), "--new", str(out / "new")],
-            capture_output=True, text=True, encoding="utf-8", errors="replace")
-        print("== 旧库 vs 新库 差分 ==")
-        print(r.stdout)
-        sys.exit(max(rc_new.returncode, rc_old.returncode, r.returncode))
+        # 正式差分对象 = 构树后 JSON（计划 §6.3）；status/raw 等运行元数据不参与
+        rc_diff = 0
+        for d in docs:
+            r = subprocess.run(
+                [sys.executable, str(REPO / "scripts" / "diff_trees.py"),
+                 "--old", str(out / "old" / d.name / "tree"),
+                 "--new", str(out / "new" / d.name / "tree")],
+                capture_output=True, text=True, encoding="utf-8", errors="replace")
+            print(f"== {d.name} 旧库 vs 新库 ==")
+            print(r.stdout.strip())
+            rc_diff = max(rc_diff, r.returncode)
+        sys.exit(max(rc_new.returncode, rc_old.returncode, rc_diff))
     sys.exit(rc_new.returncode)
 
 

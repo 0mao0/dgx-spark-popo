@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ARGS = None
 HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding",
-              "content-encoding", "keep-alive"}
+              "content-encoding", "keep-alive", "accept-encoding"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -29,10 +29,12 @@ class Handler(BaseHTTPRequestHandler):
     def _proxy(self):
         length = int(self.headers.get("content-length", 0) or 0)
         body = self.rfile.read(length) if length else b""
+        forced = None
         if (self.command == "POST"
                 and self.path.rstrip("/").endswith("chat/completions") and body):
             try:
                 b = json.loads(body)
+                forced = b.get("temperature")
                 b["temperature"] = ARGS.temperature
                 body = json.dumps(b).encode("utf-8")
             except Exception:
@@ -59,6 +61,17 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+        if ARGS.log_file:
+            snippet = ""
+            try:
+                snippet = json.loads(payload).get("choices", [{}])[0].get("message", {}).get("content") or ""
+            except Exception:
+                snippet = payload[:80].decode("utf-8", "replace")
+            with open(ARGS.log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"path": self.path, "req_bytes": length,
+                                    "client_temp": forced, "forced": ARGS.temperature,
+                                    "status": status, "resp_bytes": len(payload),
+                                    "content": snippet[:120]}, ensure_ascii=False) + "\n")
 
     do_GET = do_POST = do_PUT = do_DELETE = do_PATCH = do_OPTIONS = _proxy
 
@@ -71,6 +84,7 @@ def main():
     ap.add_argument("--upstream", default="http://127.0.0.1:18008")
     ap.add_argument("--temperature", type=float, default=0.0)
     ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--log-file", default="")
     ARGS = ap.parse_args()
     ThreadingHTTPServer(("127.0.0.1", ARGS.listen), Handler).serve_forever()
 
