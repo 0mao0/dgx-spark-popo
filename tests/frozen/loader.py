@@ -51,6 +51,28 @@ def pick(manifest, n=3, order=("single_page", "table_dense", "regular")):
     return out[:n]
 
 
+def pick_differential(manifest, n_multi=8, n_single=2):
+    """差分档取样（计划 §6.2）：单页 n_single 本走放宽判据，多页 n_multi 本轮转六层走严格等值。"""
+    docs = sorted(manifest["docs"], key=lambda x: x["doc_id"])
+    single = [d for d in docs if d["stratum"] == "single_page"][:n_single]
+    multi_strata = ["table_dense", "numbered_heading", "image_dense", "scanned", "long", "regular"]
+    multi, i = [], 0
+    while len(multi) < n_multi:
+        added = False
+        for s in multi_strata:
+            if len(multi) >= n_multi:
+                break
+            cands = [d for d in docs
+                     if d["stratum"] == s and d not in multi and d not in single]
+            if i < len(cands):
+                multi.append(cands[i])
+                added = True
+        if not added:
+            break
+        i += 1
+    return single + multi
+
+
 def doc_dir(manifest_doc, corpora_root):
     """manifest 条目 -> 语料库文档目录。"""
     return Path(corpora_root) / manifest_doc["library"] / "documents" / manifest_doc["doc_id"]

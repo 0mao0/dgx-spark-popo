@@ -12,7 +12,7 @@ license = { text = "MIT" }
 [tool.setuptools]
 package-dir = {"" = "src"}
 
-# 上游无 __init__.py，按命名空间包收集（与 AnGIneer docs-core 生产模式一致）；
+# 上游无 __init__.py，按命名空间包收集（与既有生产部署一致）；
 # figures / output_cases 为上游资料目录，留在仓但不打进 wheel。
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """对若干文档跑 PoPo 客户端三段链：label_normalization -> run_inference -> get_json_tree。
 
-调用契约与 AnGIneer step03 popo_enhance 保持一致：
+调用契约与既有生产调用方保持一致：
   输入  <doc>/parsed/mineru_raw/middle.json（回退 content_list.json）+ <doc>/source/*.pdf
   链路  label_normalization.py -> 修补 input_label -> run_inference.py -> get_json_tree.py
   环境  POPO_CONFIGS / POPO_API_TIMEOUT / POPO_MAX_TOKENS / POPO_TEMPERATURE 由调用方注入
@@ -48,7 +48,7 @@ def prepare_input(doc: Path, work: Path) -> Path:
 
 
 def patch_input_label(normalized: Path, doc_id: str, pdf: Path) -> int:
-    """把 normalized 输出里的 input_label 指到真实 PDF（与 popo_enhance 相同）。"""
+    """把 normalized 输出里的 input_label 指到真实 PDF（与生产调用方相同）。"""
     n = 0
     for nf in normalized.rglob(f"{doc_id}.json"):
         data = json.loads(nf.read_text(encoding="utf-8"))

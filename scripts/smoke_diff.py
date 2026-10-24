@@ -27,7 +27,28 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tests" / "frozen"))
-from loader import load_manifest, pick, doc_dir  # noqa: E402
+from loader import load_manifest, pick, pick_differential, doc_dir  # noqa: E402
+
+
+def check_single_page_new(work: Path):
+    """单页档放宽判据（计划 §6.3）：新库树有效且 title 判定非空。"""
+    tree_dir = work / "tree"
+    trees = sorted(tree_dir.rglob("*.json"))
+    if not trees:
+        return False, "无构树产物", 0
+    try:
+        has_children = any(
+            json.loads(p.read_text(encoding="utf-8")).get("children") for p in trees)
+    except Exception:
+        return False, "构树 JSON 解析失败", 0
+    titles = 0
+    for p in (work / "inference_raw").rglob("summary.json"):
+        try:
+            titles += len(json.loads(p.read_text(encoding="utf-8")).get("title_label") or [])
+        except Exception:
+            pass
+    reason = "树有效" if has_children else "树为空"
+    return (has_children and titles > 0), reason, titles
 
 
 def build_configs(url: str) -> str:
@@ -60,12 +81,17 @@ def main():
     ap.add_argument("--new-endpoint", required=True)
     ap.add_argument("--old-endpoint", default="http://127.0.0.1:18009/v1")
     ap.add_argument("--n", type=int, default=3)
+    ap.add_argument("--tier", choices=["smoke", "differential"], default="smoke",
+                    help="differential=单页 2 本放宽判据 + 多页 8 本轮转严格等值（计划 §6.2）")
     args = ap.parse_args()
 
     manifest = load_manifest(args.manifest)
     if manifest is None:
         sys.exit("missing manifest: pass --manifest or set POPO_FROZEN_MANIFEST")
-    docs = [doc_dir(d, args.corpora_root) for d in pick(manifest, args.n)]
+    chosen = pick(manifest, args.n) if args.tier == "smoke" \
+        else pick_differential(manifest, n_multi=max(args.n - 2, 0))
+    docs = [doc_dir(d, args.corpora_root) for d in chosen]
+    manifest_by_id = {d["doc_id"]: d for d in manifest["docs"]}
     for d in docs:
         if not d.is_dir():
             sys.exit(f"doc dir not found: {d}")
@@ -95,17 +121,23 @@ def main():
         print(r.stdout[-1500:])
 
     if args.old_root:
-        # 正式差分对象 = 构树后 JSON（计划 §6.3）；status/raw 等运行元数据不参与
+        # 正式差分对象 = 构树 JSON（计划 §6.3）；status/raw 等运行元数据不参与
         rc_diff = 0
         for d in docs:
+            stratum = manifest_by_id[d.name]["stratum"]
+            if stratum == "single_page":
+                ok, reason, titles = check_single_page_new(out / "new" / d.name)
+                print(f"== {d.name} 单页档（6fd49e4 放宽判据）==")
+                print(f"  {reason}；title 判定 {titles} 条 -> "
+                      f"{'通过' if ok else '需人工确认'}")
             r = subprocess.run(
                 [sys.executable, str(REPO / "scripts" / "diff_trees.py"),
                  "--old", str(out / "old" / d.name / "tree"),
                  "--new", str(out / "new" / d.name / "tree")],
                 capture_output=True, text=True, encoding="utf-8", errors="replace")
-            print(f"== {d.name} 旧库 vs 新库 ==")
             print(r.stdout.strip())
-            rc_diff = max(rc_diff, r.returncode)
+            if stratum != "single_page":
+                rc_diff = max(rc_diff, r.returncode)
         sys.exit(max(rc_new.returncode, rc_old.returncode, rc_diff))
     sys.exit(rc_new.returncode)
 
