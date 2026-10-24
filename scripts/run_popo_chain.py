@@ -101,7 +101,8 @@ def process_doc(popo_root: Path, doc: Path, out_root: Path, timeouts: dict) -> d
     run_stage(
         [py, str(popo_root / "post_processing" / "run_inference.py"),
          "--model", "mineru", "--input-dir", str(normalized),
-         "--output-dir", str(enriched), "--limit", "0"],
+         "--output-dir", str(enriched), "--limit", "0",
+         "--raw-output-root", str(work / "inference_raw")],
         timeouts["inference"],
     )
     stages["inference"] = "done"
