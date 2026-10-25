@@ -11,14 +11,20 @@ cp .env.example .env        # 填 POPO_API_KEY、POPO_IMAGE 与模型路径
 
 成功后：`http://<host>:8008/health` 200，vLLM 引擎只绑 `127.0.0.1:8010`。
 
-## 镜像（BYO）
+## 镜像（自带 Dockerfile）
 
-**不随仓分发镜像**。`POPO_IMAGE` 指向任意满足以下条件的 GB10（arm64）镜像：
+`deploy/Dockerfile` 按配方构建（aarch64 wheel 全部来自 PyPI/pytorch 官方 index，无需本地编译）：
 
-- 提供 `vllm serve` CLI 与 Python 3（proxy 容器用它跑 `popo_proxy.py`，仅标准依赖 httpx/fastapi/uvicorn）；
-- 能加载 Popo 4B fp8（vLLM ≥ 你的构建所支持的 fp8 量化路径）。
+```bash
+cd deploy
+docker build -t popo-vllm:gb10 .
+# .env 里 POPO_IMAGE=popo-vllm:gb10，然后 ./deploy.sh
+```
 
-没有现成镜像时，需自行构建 GB10 兼容的 vLLM 环境（CUDA 13 / arm64 wheel 可得性是主要门槛）。
+也可用任意现成 GB10 vLLM 镜像（`POPO_IMAGE` 指过去）。构建细节与版本依据见 `image-recipe.md`；
+`requirements-freeze.txt` 为现役生产镜像的 267 项依赖快照。
+
+**前提**：DGX Spark（GB10，arm64）+ Docker + NVIDIA Container Toolkit；其他 GPU 需换镜像与参数。
 
 ## 文件
 
