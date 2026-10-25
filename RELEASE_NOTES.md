@@ -29,7 +29,7 @@ PoPo 文档解析：DGX Spark（GB10）一键部署件 + Python 客户端库。�
 ### 已知限制
 
 - **大 PDF 并发 OOM**：>10MB PDF 并发解析可触发引擎 OOM（容器退出码 137）；单并发规避，`docker restart popo-engine` 恢复。
-- **镜像约 30.3GB**：直连 ghcr 慢或失败时用 `ghcr.nju.edu.cn` 镜像前缀或 `docker save/load` 离线导入；版本以 digest 固定。
+- **镜像不分发（BYO）**：GB10（arm64）vLLM 环境自备，`POPO_IMAGE` 参数化指向你的镜像；CUDA13/arm64 wheel 可得性是自建门槛。
 - 引擎参数 `--gpu-memory-utilization 0.17` 按 GB10 与其他服务共存的口径调校，独占机型可自行调高。
 
 ### 权重

@@ -16,11 +16,11 @@ PoPo 文档解析：DGX Spark（GB10）一键部署件 + Python 客户端库。
 
 ## 快速开始
 
-部署（DGX Spark 主机，约 30GB 镜像 + 权重下载）：
+部署（DGX Spark 主机；**镜像 BYO**——`POPO_IMAGE` 指向你的 GB10 vLLM 镜像，权重按 revision 拉取）：
 
 ```bash
 cd deploy
-cp .env.example .env     # 填 POPO_API_KEY 与模型路径
+cp .env.example .env     # 填 POPO_API_KEY、POPO_IMAGE 与模型路径
 ./deploy.sh              # 拉镜像 → 拉权重 → 打配置补丁 → 起容器 → 轮询 /health
 ```
 
@@ -79,7 +79,7 @@ deploy/（本仓）           DGX Spark 主机
 ## 已知限制
 
 - >10MB 大 PDF 并发解析可触发引擎 OOM（退出码 137）；单并发规避，`docker restart popo-engine` 恢复。
-- 镜像约 30.3GB；直连 ghcr 慢时用 `ghcr.nju.edu.cn` 镜像前缀或 `docker save/load` 离线导入。
+- **镜像不分发**：GB10（arm64）vLLM 环境自备，`POPO_IMAGE` 参数化；CUDA13/arm64 wheel 可得性是自建门槛。
 
 ## 许可与致谢
 
