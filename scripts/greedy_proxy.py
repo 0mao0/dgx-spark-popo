@@ -11,6 +11,8 @@
 """
 import argparse
 import json
+import threading
+import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,6 +20,29 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ARGS = None
 HOP_BY_HOP = {"host", "content-length", "connection", "transfer-encoding",
               "content-encoding", "keep-alive", "accept-encoding"}
+UPSTREAM_SEM = threading.Semaphore(4)
+
+
+def fetch_upstream(url, data, headers, method):
+    """上游访问：并发闸门 + 对拒绝/超时短重试（ssh -L 在并发洪峰下会间歇拒连）。"""
+    last = None
+    for attempt in range(3):
+        with UPSTREAM_SEM:
+            req = urllib.request.Request(url, data=data if data else None, method=method)
+            for k, v in headers.items():
+                if k.lower() not in HOP_BY_HOP:
+                    req.add_header(k, v)
+            try:
+                with urllib.request.urlopen(req, timeout=ARGS.timeout) as resp:
+                    return resp.read(), resp.status, dict(resp.headers)
+            except urllib.error.HTTPError as e:
+                return e.read(), e.code, dict(e.headers)
+            except Exception as exc:
+                last = exc
+        time.sleep(2 * (attempt + 1))
+    payload = json.dumps({"error": {"message": f"proxy error: {last}"}},
+                         ensure_ascii=False).encode("utf-8")
+    return payload, 502, {"Content-Type": "application/json"}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,19 +65,7 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 pass
         url = ARGS.upstream.rstrip("/") + self.path
-        req = urllib.request.Request(url, data=body if body else None, method=self.command)
-        for k, v in self.headers.items():
-            if k.lower() not in HOP_BY_HOP:
-                req.add_header(k, v)
-        try:
-            with urllib.request.urlopen(req, timeout=ARGS.timeout) as resp:
-                payload, status, headers = resp.read(), resp.status, dict(resp.headers)
-        except urllib.error.HTTPError as e:
-            payload, status, headers = e.read(), e.code, dict(e.headers)
-        except Exception as exc:
-            payload = json.dumps({"error": {"message": f"proxy error: {exc}"}},
-                                 ensure_ascii=False).encode("utf-8")
-            status, headers = 502, {"Content-Type": "application/json"}
+        payload, status, headers = fetch_upstream(url, body, dict(self.headers), self.command)
 
         self.send_response(status)
         for k, v in headers.items():
@@ -77,15 +90,18 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    global ARGS
+    global ARGS, UPSTREAM_SEM
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--listen", type=int, default=18009)
     ap.add_argument("--upstream", default="http://127.0.0.1:18008")
     ap.add_argument("--temperature", type=float, default=0.0)
     ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--max-concurrent", type=int, default=4,
+                    help="上游并发闸门；ssh -L 隧道场景建议 2-4")
     ap.add_argument("--log-file", default="")
     ARGS = ap.parse_args()
+    UPSTREAM_SEM = threading.Semaphore(ARGS.max_concurrent)
     ThreadingHTTPServer(("127.0.0.1", ARGS.listen), Handler).serve_forever()
 
 

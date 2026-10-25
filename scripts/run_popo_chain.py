@@ -64,10 +64,16 @@ def patch_input_label(normalized: Path, doc_id: str, pdf: Path) -> int:
     return n
 
 
-def run_stage(args, timeout: int) -> str:
+def run_stage(args, timeout: int, log_file: Path | None = None) -> str:
     proc = subprocess.run(
         args, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
     )
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        log_file.write_text(
+            f"$ {' '.join(args)}\n\n[stdout]\n{proc.stdout or ''}\n[stderr]\n{proc.stderr or ''}",
+            encoding="utf-8",
+        )
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "")[-2000:]
         raise RuntimeError(f"exit {proc.returncode}: {tail}")
@@ -84,6 +90,7 @@ def process_doc(popo_root: Path, doc: Path, out_root: Path, timeouts: dict) -> d
     pdf = find_pdf(doc)
     t0 = time.time()
     stages = {}
+    logs = work / "stage-logs"
 
     prepare_input(doc, work)
 
@@ -92,7 +99,7 @@ def process_doc(popo_root: Path, doc: Path, out_root: Path, timeouts: dict) -> d
         [py, str(popo_root / "post_processing" / "label_normalization.py"),
          "--model", "mineru", "--input-dir", str(work / "input"),
          "--output-dir", str(normalized), "--doc-id", doc_id],
-        timeouts["label"],
+        timeouts["label"], logs / "10-label_normalization.log",
     )
     patched = patch_input_label(normalized, doc_id, pdf)
     stages["input_label_patched"] = patched
@@ -103,7 +110,7 @@ def process_doc(popo_root: Path, doc: Path, out_root: Path, timeouts: dict) -> d
          "--model", "mineru", "--input-dir", str(normalized),
          "--output-dir", str(enriched), "--limit", "0",
          "--raw-output-root", str(work / "inference_raw")],
-        timeouts["inference"],
+        timeouts["inference"], logs / "20-run_inference.log",
     )
     stages["inference"] = "done"
 
@@ -112,7 +119,7 @@ def process_doc(popo_root: Path, doc: Path, out_root: Path, timeouts: dict) -> d
         [py, str(popo_root / "post_processing" / "get_json_tree.py"),
          "--input-dir", str(enriched), "--output-dir", str(tree),
          "--txt-dir", str(work / "tree_txt")],
-        timeouts["tree"],
+        timeouts["tree"], logs / "30-get_json_tree.log",
     )
     stages["tree"] = "done"
 
