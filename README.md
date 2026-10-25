@@ -97,5 +97,6 @@ deploy/（本仓）           DGX Spark 主机
 MIT（与上游一致），见 `LICENSE`、`NOTICE`、`THIRD_PARTY_NOTICES.md`。
 
 - 上游：[opendatalab/MinerU-Popo](https://github.com/opendatalab/MinerU-Popo)，env 端点方案已随 PR [#14](https://github.com/opendatalab/MinerU-Popo/pull/14) 并入上游；多端点 `POPO_CONFIGS` 为本仓补丁独有。
+- FP8 在线量化：部署指南与等价性验证 harness 见上游 PR [#18](https://github.com/opendatalab/MinerU-Popo/pull/18)（本仓 deploy 的 `--quantization fp8` 引擎参数即按该方案）。
 - 权重：`DreamEternal/MinerU-Popo @ af75342`，不转存，部署脚本按 revision 原仓拉取。
 - 引擎依赖 vLLM（Apache-2.0）。
