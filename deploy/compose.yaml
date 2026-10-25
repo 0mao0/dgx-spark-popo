@@ -75,3 +75,30 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # 可选：文档级 API（服务端跑链形态）——POST middle.json+PDF 回判定+树，调用方零依赖
+  # 启用：docker compose --profile docapi up -d
+  docapi:
+    image: ${POPO_IMAGE}
+    container_name: popo-docapi
+    restart: unless-stopped
+    network_mode: host
+    profiles: ["docapi"]
+    depends_on:
+      - engine
+    volumes:
+      - ../server/popo_api.py:/srv/popo_api.py:ro
+      - ../src/popo:/srv/popo-lib:ro
+    environment:
+      - POPO_REPO_PATH=/srv/popo-lib
+      - POPO_CONFIGS=[{"name":"local","url":"http://127.0.0.1:${POPO_PROXY_PORT:-8008}/v1","api_key":"${POPO_API_KEY}","model":"Popo"}]
+      - POPO_DOC_API_KEY=${POPO_DOC_API_KEY:-}
+      - POPO_DOC_PORT=${POPO_DOC_PORT:-8009}
+    entrypoint: ["python", "/srv/popo_api.py"]
+    healthcheck:
+      test: ["CMD", "python3", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:${POPO_DOC_PORT:-8009}/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

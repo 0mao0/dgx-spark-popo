@@ -46,8 +46,13 @@ popo.post_processing 三段链
         ▼
 deploy/（本仓）           DGX Spark 主机
  ├─ popo-api  :8008       采样代理（setdefault 0.7/0.8/20）
- └─ popo-engine 127.0.0.1:8010   vLLM fp8
+ ├─ popo-engine 127.0.0.1:8010   vLLM fp8
+ └─ popo-docapi :8009（可选）  文档级 API：POST middle.json+PDF → 判定+树（server/）
 ```
+
+两种接入形态：**文档级**（推荐外部使用者）——`docker compose --profile docapi up -d` 后
+`POST :8009/v1/enhance`（multipart：middle + pdf），见 `server/popo_api.py`；
+**链级**（库内编排，AnGIneer 现行）——`pip install popo-client` 跑三段链，直连 :8008。
 
 引擎生产参数：`--quantization fp8 --dtype bfloat16 --max-model-len 32768 --max-num-seqs 4 --gpu-memory-utilization 0.17 --trust-remote-code`。
 
