@@ -28,7 +28,10 @@ def _popo_endpoints():
     except Exception:
         print("POPO_CONFIGS 非法 JSON，忽略")
         return []
+    if isinstance(data, dict):
+        data = [data]  # 容忍单个对象（漏写外层 []），按单端点处理
     if not isinstance(data, list):
+        print("POPO_CONFIGS 须为 JSON 数组（单个端点也请包 []），忽略")
         return []
     endpoints = []
     for item in data:
@@ -99,8 +102,11 @@ def _transformers_generate(prompt, base64_image):
     return output_text[0] if output_text else ""
 
 def _popo_temperature():
-    """采样温度：默认 1 保持历史行为；差分/回归设 POPO_TEMPERATURE=0 走贪心解码。"""
-    return float(os.environ.get("POPO_TEMPERATURE", "1"))
+    """采样温度：默认不返回（请求不带 temperature，交由服务端/采样代理注入官方默认
+    0.7+top_k——显式发 1 会打穿代理修复，触发 EOS 首 token 空输出，生产实测 ~13% 问了回空）。
+    设 POPO_TEMPERATURE=0 走贪心解码（差分确定性）；=1 显式发送 1（复现旧行为）。"""
+    raw = os.environ.get("POPO_TEMPERATURE", "").strip()
+    return float(raw) if raw else None
 
 def popo_generate(prompt, base64_image):
     if os.environ.get("POPO_INFERENCE_BACKEND") == "transformers":
@@ -149,11 +155,15 @@ def popo_generate(prompt, base64_image):
             cnt = 0
             while cnt < 2:
                 try:
+                    sampling = {}
+                    _t = _popo_temperature()
+                    if _t is not None:
+                        sampling["temperature"] = _t
                     response = client.chat.completions.create(
                         model=base_model,
                         messages=messages,
                         max_tokens=max_tokens,
-                        temperature=_popo_temperature(),
+                        **sampling,
                     )
                     res = response.choices[0].message.content
                     return res
@@ -212,11 +222,15 @@ def qwen_generate(prompt, base64_image):
             cnt = 0
             while cnt < 2:
                 try:
+                    sampling = {}
+                    _t = _popo_temperature()
+                    if _t is not None:
+                        sampling["temperature"] = _t
                     response = client.chat.completions.create(
                         model=base_model,
                         messages=messages,
                         max_tokens=max_tokens,
-                        temperature=_popo_temperature()
+                        **sampling,
                     )
                     res = response.choices[0].message.content
 
@@ -275,10 +289,14 @@ def gpt_generate(prompt, base64_image):#gemini-3-pro-preview
             cnt = 0
             while cnt < 2:
                 try:
+                    sampling = {}
+                    _t = _popo_temperature()
+                    if _t is not None:
+                        sampling["temperature"] = _t
                     response = client.chat.completions.create(
                         model=base_model,
                         messages=messages,
-                        temperature=_popo_temperature()
+                        **sampling,
                     )
                     res = response.choices[0].message.content
 

@@ -11,7 +11,7 @@ PoPo 文档解析：DGX Spark（GB10）一键部署件 + Python 客户端库。
 - 相对上游的单文件补丁（`post_processing/model_utils.py`）：
   - `POPO_CONFIGS`：多端点 JSON 列表，数组顺序即 failover 顺序；
   - `POPO_API_TIMEOUT` / `POPO_MAX_TOKENS`：每端点超时与生成长度上限；
-  - `POPO_TEMPERATURE`：默认 `1` 保持上游行为；设 `0` 走贪心解码（回归测试确定性用）。
+  - `POPO_TEMPERATURE`：默认**不发送**该参数（由服务端/采样代理注入官方默认）；设 `0` 贪心解码（差分确定性），设 `1` 复现旧版显式行为（会打穿代理修复、放大空输出，不建议）。
 - 单页文档判定：上游 `6fd49e4` 起 `adaptive_chunk` 对单页短路——此前单页文档不产生任何判定。
 
 ## 快速开始
