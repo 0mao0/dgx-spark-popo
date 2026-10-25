@@ -76,6 +76,12 @@ deploy/（本仓）           DGX Spark 主机
 
 冻结集机制：回归清单（doc id + sha256 + 页数 + 分层）由调用方经 `POPO_FROZEN_MANIFEST` 注入，不入仓；CI 无清单时只跑单测。差分确定性口径：`POPO_TEMPERATURE=0` 两次构树逐字节一致。
 
+## 与上游的差异
+
+- `src/popo` = [上游](https://github.com/opendatalab/MinerU-Popo) `8b9a8bd` 全量文件，**仅 `post_processing/model_utils.py` 一个文件带补丁**（其余文件与上游逐字节一致）：`POPO_CONFIGS` 多端点、超时、`POPO_MAX_TOKENS`、`POPO_TEMPERATURE`、单对象配置容错。
+- 仓级新增（不属于上游代码）：`deploy/` 部署件、`scripts/` 测试工具链、`tests/`、CI、本文件与 NOTICES。
+- 权重下载：[HF DreamEternal/MinerU-Popo @ af75342](https://huggingface.co/DreamEternal/MinerU-Popo/tree/af75342)（`HF_HUB_DISABLE_XET=1`；国内可设 `HF_ENDPOINT=https://hf-mirror.com`）；引擎镜像自建见 [deploy/image-recipe.md](deploy/image-recipe.md)（vllm/torch aarch64 下载来源在内）。
+
 ## 已知限制
 
 - >10MB 大 PDF 并发解析可触发引擎 OOM（退出码 137）；单并发规避，`docker restart popo-engine` 恢复。
