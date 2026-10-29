@@ -6,3 +6,4 @@ dist/
 outputs/
 .env
 models/
+.idea/
