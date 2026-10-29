@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "PoPo document parsing client library (post-processing / tree building), based on MinerU-Popo 8b9a8bd"
 requires-python = ">=3.10"
 license = { text = "MIT" }
+dependencies = [
+    "huggingface-hub>=2.3.0",
+    "modelscope>=1.40.2",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -19,3 +23,10 @@ where = ["src"]
 namespaces = true
 include = ["popo*"]
 exclude = ["popo.figures*", "popo.output_cases*"]
+
+# uv 包源：阿里云 PyPI 镜像（默认 index，替代官方 PyPI）。
+# 临时换官方源: UV_DEFAULT_INDEX=https://pypi.org/simple uv ...
+[[tool.uv.index]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
+default = true
