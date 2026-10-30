@@ -7,6 +7,7 @@ PoPo 引擎 + 采样代理的一键部署件，目标平台 DGX Spark（GB10）�
 ```bash
 cp .env.example .env        # 填 POPO_API_KEY、POPO_IMAGE 与模型路径
 ./deploy.sh                 # 拉镜像 → 拉权重 → 打配置补丁 → 起容器 → 轮询 /health
+./deploy.sh --no-start      # 可选：只做准备工作（镜像/权重/补丁），不启动容器
 ```
 
 成功后：`http://<host>:8008/health` 200，vLLM 引擎只绑 `127.0.0.1:8010`。
@@ -30,10 +31,10 @@ docker build -t popo-vllm:gb10 .
 
 | 文件 | 说明 |
 |---|---|
-| `deploy.sh` | 五步部署；权重 `DreamEternal/MinerU-Popo@af75342`，`HF_HUB_DISABLE_XET=1` |
+| `deploy.sh` | 五步部署（`--no-start` 可停在准备工作）；权重 `DreamEternal/MinerU-Popo@af75342`，`HF_HUB_DISABLE_XET=1` |
 | `compose.yaml` | engine（vLLM fp8，参数与现役一致）+ proxy（采样注入，host 网络） |
 | `popo_proxy.py` | 80 行采样代理：`setdefault` 注入 0.7/0.8/20，显式传参被尊重 |
-| `.env.example` | 端口、密钥、模型路径、采样参数 |
+| `.env.example` | 端口、密钥、模型路径、采样参数、下载源（`POPO_HF_ENDPOINT` 默认 hf-mirror；`POPO_USE_MODELSCOPE=1` 改用 ModelScope） |
 | `systemd/` | 可选开机单元 |
 
 ## 客户端调用

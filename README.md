@@ -22,6 +22,7 @@ PoPo 文档解析：DGX Spark（GB10）一键部署件 + Python 客户端库。
 cd deploy
 cp .env.example .env     # 填 POPO_API_KEY、POPO_IMAGE 与模型路径
 ./deploy.sh              # 拉镜像 → 拉权重 → 打配置补丁 → 起容器 → 轮询 /health
+./deploy.sh --no-start   # 可选：只做准备工作（镜像/权重/补丁），不启动容器
 ```
 
 成功后 `http://<host>:8008/health` 返回 200，引擎只绑 `127.0.0.1:8010`。
@@ -86,6 +87,7 @@ deploy/（本仓）           DGX Spark 主机
 - `src/popo` = [上游](https://github.com/opendatalab/MinerU-Popo) `8b9a8bd` 全量文件，**仅 `post_processing/model_utils.py` 一个文件带补丁**（其余文件与上游逐字节一致）：`POPO_CONFIGS` 多端点、超时、`POPO_MAX_TOKENS`、`POPO_TEMPERATURE`、单对象配置容错。
 - 仓级新增（不属于上游代码）：`deploy/` 部署件、`scripts/` 测试工具链、`tests/`、CI、本文件与 NOTICES。
 - 权重下载：[HF DreamEternal/MinerU-Popo @ af75342](https://huggingface.co/DreamEternal/MinerU-Popo/tree/af75342)（`HF_HUB_DISABLE_XET=1`；国内可设 `HF_ENDPOINT=https://hf-mirror.com`）；引擎镜像自建见 [deploy/image-recipe.md](deploy/image-recipe.md)（vllm/torch aarch64 下载来源在内）。
+- 包下载：uv 默认走阿里云 PyPI 镜像（仓内 `pyproject.toml` `[[tool.uv.index]]`，机器级 `~/.config/uv/uv.toml`；`UV_DEFAULT_INDEX` 可临时覆盖）。
 
 ## 已知限制
 
